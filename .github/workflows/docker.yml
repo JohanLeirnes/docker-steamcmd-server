@@ -22,4 +22,4 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:aska
+            ${{ secrets.DOCKERHUB_USERNAME }}/docker-steamcmd-server:aska
