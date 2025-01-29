@@ -52,20 +52,6 @@ update_property() {
     fi
 }
 
-# Update server properties if environment variables are set
-log_message "Updating server properties..."
-
-update_property "display name" "${SERVER_NAME:-Docker ASKA Server}"
-update_property "server name" "${SERVER_NAME:-Docker ASKA Server}"
-update_property "password" "${SERVER_PASSWORD:-}"
-update_property "steam game port" "${GAME_PORT:-27015}"
-update_property "steam query port" "${QUERY_PORT:-27016}"
-update_property "authentication token" "${AUTH_TOKEN:-}"  # This should be required
-update_property "region" "${SERVER_REGION:-default}"
-update_property "keep server world alive" "${KEEP_ALIVE:-false}"
-update_property "autosave style" "${AUTOSAVE_STYLE:-every morning}"
-update_property "mode" "${GAME_MODE:-normal}"
-
 # Check and install SteamCMD if necessary
 if [ ! -f ${STEAMCMD_DIR}/steamcmd.sh ]; then
     log_message "SteamCMD not found! Downloading..."
@@ -74,14 +60,36 @@ if [ ! -f ${STEAMCMD_DIR}/steamcmd.sh ]; then
     rm ${STEAMCMD_DIR}/steamcmd_linux.tar.gz
 fi
 
-# Update SteamCMD and Server
-log_message "Updating SteamCMD and Server..."
-${STEAMCMD_DIR}/steamcmd.sh \
-    +@sSteamCmdForcePlatformType windows \
-    +force_install_dir ${SERVER_DIR} \
-    +login anonymous \
-    +app_update ${GAME_ID} ${VALIDATE:+validate} \
-    +quit
+run_steamcmd() {
+    local validate=$1
+    local login_args="+login anonymous"
+    
+    if [ "${USERNAME}" != "" ]; then
+        login_args="+login ${USERNAME} ${PASSWRD}"
+    fi
+    
+    local validate_arg=""
+    if [ "${validate}" == "true" ]; then
+        validate_arg="validate"
+    fi
+    
+    ${STEAMCMD_DIR}/steamcmd.sh \
+        +@sSteamCmdForcePlatformType windows \
+        +force_install_dir ${SERVER_DIR} \
+        ${login_args} \
+        +app_update ${GAME_ID} ${validate_arg} \
+        +quit
+}
+
+# Update/Validate Server
+if [ "${VALIDATE}" == "true" ]; then
+    log_message "Updating and validating server..."
+    run_steamcmd false  # First update
+    run_steamcmd true   # Then validate
+else
+    log_message "Updating server..."
+    run_steamcmd false  # Just update once
+fi
 
 # Wine configuration
 export WINEARCH=win64
@@ -108,6 +116,21 @@ if [ ! -d ${SERVER_DIR}/WINE64 ]; then
     sleep 5
     rm ${SERVER_DIR}/vcredist_x64.exe
 fi
+
+
+# Update server properties if environment variables are set
+log_message "Updating server properties..."
+
+update_property "display name" "${SERVER_NAME:-Docker ASKA Server}"
+update_property "server name" "${SERVER_NAME:-Docker ASKA Server}"
+update_property "password" "${SERVER_PASSWORD:-}"
+update_property "steam game port" "${GAME_PORT:-27015}"
+update_property "steam query port" "${QUERY_PORT:-27016}"
+update_property "authentication token" "${AUTH_TOKEN:-}"  # This should be required
+update_property "region" "${SERVER_REGION:-default}"
+update_property "keep server world alive" "${KEEP_ALIVE:-false}"
+update_property "autosave style" "${AUTOSAVE_STYLE:-every morning}"
+update_property "mode" "${GAME_MODE:-normal}"
 
 # Pre-launch checks
 log_message "Checking server files..."
