@@ -28,9 +28,9 @@ update_property() {
     if [ ! -f "$file" ]; then
         log_message "ERROR: server properties.txt not found!"
         return 1
-    }
+    fi  
     
-    # Check if property exists
+    # Check if property exists and update it
     if grep -q "^${property} = " "$file"; then
         # Get current value
         current_value=$(grep "^${property} = " "$file" | sed "s|^${property} = ||")
