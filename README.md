@@ -7,7 +7,7 @@ This Docker container will download and install SteamCMD and run ASKA Dedicated 
 Before running the server, you **must** obtain a Steam Game Server Token from:
 https://steamcommunity.com/dev/managegameservers
 
-The game ID (App ID) for ASKA is: 3246670
+The game ID (App ID) for ASKA is: 1898300
 
 ## Environment Variables
 
@@ -18,7 +18,7 @@ The game ID (App ID) for ASKA is: 3246670
 | SERVER_PASSWORD | Password to join the server | - | No |
 | GAME_PORT | Main game port | 27015 | No |
 | QUERY_PORT | Server query port | 27016 | No |
-| SERVER_REGION | Server region | "europe" | No |
+| SERVER_REGION | Server region | "default" | No |
 | KEEP_ALIVE | Keep world loaded without players | "false" | No |
 | AUTOSAVE_STYLE | Autosave frequency | "every morning" | No |
 | GAME_MODE | Game mode setting | "normal" | No |
