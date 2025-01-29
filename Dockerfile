@@ -4,8 +4,16 @@ LABEL org.opencontainers.image.authors="admin@minenet.at"
 LABEL org.opencontainers.image.source="https://github.com/ich777/docker-steamcmd-server"
 
 RUN apt-get update && \
-	apt-get -y install lib32gcc-s1 winbind xvfb screen && \
-	rm -rf /var/lib/apt/lists/*
+    apt-get -y install \
+    lib32gcc-s1 \
+    winbind \
+    xvfb \
+    screen \
+    libvulkan1 \
+    libvulkan1:i386 \
+    mesa-vulkan-drivers \
+    mesa-vulkan-drivers:i386 \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV DATA_DIR="/serverdata"
 ENV STEAMCMD_DIR="${DATA_DIR}/steamcmd"
@@ -22,6 +30,8 @@ ENV USERNAME=""
 ENV PASSWRD=""
 ENV USER="steam"
 ENV DATA_PERM=770
+ENV ENABLE_VKBASALT=0
+ENV WINE_VK_VULKAN_ONLY=1
 
 RUN mkdir $DATA_DIR && \
 	mkdir $STEAMCMD_DIR && \
