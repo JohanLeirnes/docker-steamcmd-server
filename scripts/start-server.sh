@@ -14,27 +14,26 @@ error_handler() {
 
 trap 'error_handler ${LINENO}' ERR
 
-# Function to run SteamCMD commands
-run_steamcmd() {
-    local validate=$1
-    local login_args="+login anonymous"
-    
-    if [ "${USERNAME}" != "" ]; then
-        login_args="+login ${USERNAME} ${PASSWRD}"
-    fi
-    
-    local validate_arg=""
-    if [ "${validate}" == "true" ]; then
-        validate_arg="validate"
-    fi
-    
-    ${STEAMCMD_DIR}/steamcmd.sh \
-        +@sSteamCmdForcePlatformType windows \
-        +force_install_dir ${SERVER_DIR} \
-        ${login_args} \
-        +app_update ${GAME_ID} ${validate_arg} \
-        +quit
-}
+# Create necessary directories
+mkdir -p ${SERVER_DIR}/logs
+mkdir -p ${SERVER_DIR}/saves/server
+
+# Check and create server properties if it doesn't exist
+if [ ! -f "${SERVER_DIR}/server properties.txt" ]; then
+    log_message "Creating default server properties file..."
+    cat > "${SERVER_DIR}/server properties.txt" << EOL
+display name = ${SERVER_NAME:-"Default ASKA Server"}
+server name = ${SERVER_NAME:-"Default ASKA Server"}
+password = ${SERVER_PASSWORD:-""}
+steam game port = ${GAME_PORT:-27015}
+steam query port = ${QUERY_PORT:-27016}
+authentication token = ${AUTH_TOKEN}
+region = ${SERVER_REGION:-"europe"}
+keep server world alive = ${KEEP_ALIVE:-"false"}
+autosave style = ${AUTOSAVE_STYLE:-"every 20 minutes"}
+mode = ${GAME_MODE:-"normal"}
+EOL
+fi
 
 # Check and install SteamCMD if necessary
 if [ ! -f ${STEAMCMD_DIR}/steamcmd.sh ]; then
@@ -44,57 +43,80 @@ if [ ! -f ${STEAMCMD_DIR}/steamcmd.sh ]; then
     rm ${STEAMCMD_DIR}/steamcmd_linux.tar.gz
 fi
 
-# Update SteamCMD
-log_message "Updating SteamCMD..."
-run_steamcmd false
+# Update SteamCMD and Server
+log_message "Updating SteamCMD and Server..."
+${STEAMCMD_DIR}/steamcmd.sh \
+    +@sSteamCmdForcePlatformType windows \
+    +force_install_dir ${SERVER_DIR} \
+    +login anonymous \
+    +app_update ${GAME_ID} ${VALIDATE:+validate} \
+    +quit
 
-# Update Server
-log_message "Updating Server..."
-run_steamcmd ${VALIDATE}
-
-# Prepare Wine environment
-log_message "Preparing Wine environment..."
+# Wine configuration
 export WINEARCH=win64
 export WINEPREFIX=${SERVER_DIR}/WINE64
-export WINEDEBUG=warn+all
-export ENABLE_VKBASALT=0
-export WINE_VK_VULKAN_ONLY=1
+export WINEDEBUG=fixme-all,err+all,warn+module,warn+file
+export STAGING_SHARED_MEMORY=1
+export WINE_LARGE_ADDRESS_AWARE=1
+export WINEDLLOVERRIDES="mscoree,mshtml="
 
-# Check Wine directory
-log_message "Checking Wine workdirectory..."
+# Create Wine prefix if it doesn't exist
 if [ ! -d ${SERVER_DIR}/WINE64 ]; then
-    log_message "Wine workdirectory not found, creating..."
-    mkdir -p ${SERVER_DIR}/WINE64
-else
-    log_message "Wine workdirectory found"
-fi
-
-# Initialize Wine if necessary
-if [ ! -d ${SERVER_DIR}/WINE64/drive_c/windows ]; then
-    log_message "Setting up Wine..."
-    cd ${SERVER_DIR}
-    timeout 30s winecfg > /dev/null 2>&1 || log_message "Warning: winecfg timed out, but this might be okay"
-    sleep 5
-else
-    log_message "Wine is properly set up"
-fi
-
-# Create logs directory
-mkdir -p ${SERVER_DIR}/logs
-
-log_message "Starting server..."
-cd ${SERVER_DIR}
-
-# Wait for Wine to fully initialize
-sleep 5
-
-# Start the server with logging
-log_message "Launching ASKA server..."
-if ! xvfb-run --auto-servernum --server-args='-screen 0 640x480x24:32' \
-    wine64 ${SERVER_DIR}/AskaServer.exe ${GAME_PARAMS} \
-    > >(tee -a ${SERVER_DIR}/logs/server.log) \
-    2> >(tee -a ${SERVER_DIR}/logs/error.log >&2); then
+    log_message "Creating new Wine prefix..."
+    wineboot --init
+    sleep 10
     
-    log_message "Server crashed or failed to start. Check logs for details."
+    # Configure Wine
+    log_message "Configuring Wine..."
+    winecfg /v win10
+    
+    # Install Visual C++ Redistributables
+    log_message "Installing Visual C++ Redistributables..."
+    wget -q -O ${SERVER_DIR}/vcredist_x64.exe https://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x64.exe
+    wine ${SERVER_DIR}/vcredist_x64.exe /quiet
+    sleep 5
+    rm ${SERVER_DIR}/vcredist_x64.exe
+fi
+
+# Pre-launch checks
+log_message "Checking server files..."
+if [ ! -f ${SERVER_DIR}/AskaServer.exe ]; then
+    log_message "ERROR: AskaServer.exe not found!"
     exit 1
 fi
+
+# Configure Windows version for Wine
+winetricks win10
+
+# Create symbolic links for required directories
+ln -sf ${SERVER_DIR} Z:/serverdata
+ln -sf ${SERVER_DIR}/saves Z:/saves
+
+# Set up Virtual Desktop
+export DISPLAY=:0
+Xvfb :0 -screen 0 640x480x24:32 &
+sleep 2
+
+# Debug information
+log_message "Server directory contents:"
+ls -la ${SERVER_DIR}
+
+# Launch the server
+log_message "Launching ASKA server..."
+cd ${SERVER_DIR}
+
+LAUNCH_CMD="wine64 AskaServer.exe \
+    -batchmode \
+    -nographics \
+    -propertiesPath \"${SERVER_DIR}/server properties.txt\" \
+    -logFile \"${SERVER_DIR}/logs/unity_detailed.log\" \
+    ${GAME_PARAMS}"
+
+# Execute with proper error handling and separate logs
+eval $LAUNCH_CMD \
+    > >(tee -a ${SERVER_DIR}/logs/server.log) \
+    2> >(tee -a ${SERVER_DIR}/logs/error.log >&2)
+
+# Monitor the server process
+SERVER_PID=$!
+wait $SERVER_PID
