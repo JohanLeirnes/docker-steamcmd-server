@@ -70,14 +70,14 @@ docker run --name aska-server -d \
     --env 'AUTH_TOKEN=your_token_here' \
     --env 'SERVER_NAME=My ASKA Server' \
     --env 'SERVER_PASSWORD=optional_password' \
-    --env 'SERVER_REGION=europe' \
-    --volume /path/to/serverdata:/serverdata \
+    --volume /path/to/steamcmd:/serverdata/steamcmd \
+    --volume /path/to/serverfiles:/serverdata/serverfiles \
     yeitso/docker-steamcmd-server:aska
 ```
 
 ## Unraid Example
 
-1. Open the Docker tab in your Unraid web interface
+1. Open the Docker tab in your Unraid web interfac    e
 2. Click "Add Container"
 3. Enter the following basic configuration:
    - Repository: `yeitso/docker-steamcmd-server:aska`
@@ -88,9 +88,11 @@ docker run --name aska-server -d \
    - 27015/udp
    - 27016/udp
 
-5. Add the following path mapping:
-   - Container Path: /serverdata
-   - Host Path: /path/to/your/data
+5. Add the following path mappings:
+   - Container Path: /serverdata/steamcmd
+   - Host Path: /path/to/your/steamcmd
+   - Container Path: /serverdata/serverfiles
+   - Host Path: /path/to/your/serverfiles
 
 6. Set your variables:
    - AUTH_TOKEN: Your Steam Game Server Token
