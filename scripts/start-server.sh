@@ -18,22 +18,53 @@ trap 'error_handler ${LINENO}' ERR
 mkdir -p ${SERVER_DIR}/logs
 mkdir -p ${SERVER_DIR}/saves/server
 
-# Check and create server properties if it doesn't exist
-if [ ! -f "${SERVER_DIR}/server properties.txt" ]; then
-    log_message "Creating default server properties file..."
-    cat > "${SERVER_DIR}/server properties.txt" << EOL
-display name = ${SERVER_NAME:-"Default ASKA Server"}
-server name = ${SERVER_NAME:-"Default ASKA Server"}
-password = ${SERVER_PASSWORD:-""}
-steam game port = ${GAME_PORT:-27015}
-steam query port = ${QUERY_PORT:-27016}
-authentication token = ${AUTH_TOKEN}
-region = ${SERVER_REGION:-"europe"}
-keep server world alive = ${KEEP_ALIVE:-"false"}
-autosave style = ${AUTOSAVE_STYLE:-"every 20 minutes"}
-mode = ${GAME_MODE:-"normal"}
-EOL
-fi
+# Function to update a specific property in the server properties file
+update_property() {
+    local property="$1"
+    local value="$2"
+    local file="${SERVER_DIR}/server properties.txt"
+    
+    # Check if file exists
+    if [ ! -f "$file" ]; then
+        log_message "ERROR: server properties.txt not found!"
+        return 1
+    }
+    
+    # Check if property exists
+    if grep -q "^${property} = " "$file"; then
+        # Get current value
+        current_value=$(grep "^${property} = " "$file" | sed "s|^${property} = ||")
+        
+        # Only update if value is different
+        if [ "$current_value" != "$value" ]; then
+            # Create a temporary file
+            TMP_FILE=$(mktemp)
+            # Replace the line containing the property
+            sed "s|^${property} = .*|${property} = ${value}|" "$file" > "$TMP_FILE"
+            # Move temporary file back to original
+            mv "$TMP_FILE" "$file"
+            log_message "Updated ${property} from ${current_value} to ${value}"
+        else
+            log_message "${property} already set to ${value}, skipping"
+        fi
+    else
+        log_message "WARNING: Property ${property} not found in configuration file"
+    fi
+}
+
+# Update server properties if environment variables are set
+log_message "Updating server properties..."
+
+update_property "display name" "${SERVER_NAME:-Docker ASKA Server}"
+update_property "server name" "${SERVER_NAME:-Docker ASKA Server}"
+update_property "password" "${SERVER_PASSWORD:-}"
+update_property "steam game port" "${GAME_PORT:-27015}"
+update_property "steam query port" "${QUERY_PORT:-27016}"
+update_property "authentication token" "${AUTH_TOKEN:-}"  # This should be required
+update_property "region" "${SERVER_REGION:-default}"
+update_property "keep server world alive" "${KEEP_ALIVE:-false}"
+update_property "autosave style" "${AUTOSAVE_STYLE:-every morning}"
+update_property "mode" "${GAME_MODE:-normal}"
 
 # Check and install SteamCMD if necessary
 if [ ! -f ${STEAMCMD_DIR}/steamcmd.sh ]; then
