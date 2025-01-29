@@ -1,41 +1,139 @@
-# SteamCMD in Docker optimized for Unraid
-# For ASKA game
-This Docker will download and install SteamCMD and the according game that is pulled via specifying the Tag.
+# WIP ASKA Dedicated Server in Docker optimized for Unraid
 
-**Please see the different Tags/Branches which games are available.**
+This Docker container will download and install SteamCMD and run ASKA Dedicated Server through Wine. It's based on ich777's WineHQ baseimage and optimized for use with Unraid.
 
-## Example Env params for CS:Source
-| Name | Value | Example |
-| --- | --- | --- |
-| STEAMCMD_DIR | Folder for SteamCMD | /serverdata/steamcmd |
-| SERVER_DIR | Folder for gamefile | /serverdata/serverfiles |
-| GAME_ID | The GAME_ID that the container downloads at startup. If you want to install a static or beta version of the game change the value to: '232330 -beta YOURBRANCH' (without quotes, replace YOURBRANCH with the branch or version you want to install). | 232330 |
-| GAME_NAME | SRCDS gamename | cstrike |
-| GAME_PARAMS | Values to start the server | -secure +maxplayers 32 +map de_dust2 |
-| UID | User Identifier | 99 |
-| GID | Group Identifier | 100 |
-| GAME_PORT | Port the server will be running on | 27015 |
-| VALIDATE | Validates the game data | blank |
-| USERNAME | Leave blank for anonymous login | blank |
-| PASSWRD | Leave blank for anonymous login | blank |
+## Required Server Setup
 
-## Run example for CS:Source
+Before running the server, you **must** obtain a Steam Game Server Token from:
+https://steamcommunity.com/dev/managegameservers
+
+The game ID (App ID) for ASKA is: 3246670
+
+## Environment Variables
+
+| Name | Description | Default Value | Required |
+| --- | --- | --- | --- |
+| AUTH_TOKEN | Steam Game Server Token | - | Yes |
+| SERVER_NAME | Name displayed in server browser | "Default ASKA Server" | No |
+| SERVER_PASSWORD | Password to join the server | - | No |
+| GAME_PORT | Main game port | 27015 | No |
+| QUERY_PORT | Server query port | 27016 | No |
+| SERVER_REGION | Server region | "europe" | No |
+| KEEP_ALIVE | Keep world loaded without players | "false" | No |
+| AUTOSAVE_STYLE | Autosave frequency | "every morning" | No |
+| GAME_MODE | Game mode setting | "normal" | No |
+| VALIDATE | Validate game files on startup | - | No |
+| UID | User Identifier | 99 | No |
+| GID | Group Identifier | 100 | No |
+
+### Available Server Regions
+- default (auto-select best)
+- asia
+- japan
+- europe
+- south america
+- south korea
+- usa east
+- usa west
+- australia
+- canada east
+- hong kong
+- india
+- turkey
+- united arab emirates
+- usa south central
+
+### Available Autosave Styles
+- every morning
+- disabled
+- every 5 minutes
+- every 10 minutes
+- every 15 minutes
+- every 20 minutes
+
+### Available Game Modes
+- normal
+- custom (if you set this then there are options inside the server properties.txt you should look at)
+
+## Port Forwarding
+
+The following ports need to be forwarded:
+- 27015/udp (Game Port)
+- 27016/udp (Query Port)
+
+## Docker Run Example
+
+```bash
+docker run --name aska-server -d \
+    -p 27015:27015/udp \
+    -p 27016:27016/udp \
+    --env 'AUTH_TOKEN=your_token_here' \
+    --env 'SERVER_NAME=My ASKA Server' \
+    --env 'SERVER_PASSWORD=optional_password' \
+    --env 'SERVER_REGION=europe' \
+    --volume /path/to/serverdata:/serverdata \
+    yeitso/docker-steamcmd-server:aska
 ```
-docker run --name CSSource -d \
-	-p 27015:27015 -p 27015:27015/udp \
-	--env 'GAME_ID=232330' \
-	--env 'GAME_NAME=cstrike' \
-	--env 'GAME_PORT=27015' \
-	--env 'GAME_PARAMS=-secure +maxplayers 32 +map de_dust2' \
-	--env 'UID=99' \
-	--env 'GID=100' \
-	--volume /path/to/steamcmd:/serverdata/steamcmd \
-	--volume /path/to/cstrikesource:/serverdata/serverfiles \
-	ich777/steamcmd:latest
+
+## Unraid Example
+
+1. Open the Docker tab in your Unraid web interface
+2. Click "Add Container"
+3. Enter the following basic configuration:
+   - Repository: `yeitso/docker-steamcmd-server:aska`
+   - Name: aska-server
+   - Network Type: Bridge
+
+4. Add the following port mappings:
+   - 27015/udp
+   - 27016/udp
+
+5. Add the following path mapping:
+   - Container Path: /serverdata
+   - Host Path: /path/to/your/data
+
+6. Set your variables:
+   - AUTH_TOKEN: Your Steam Game Server Token
+   - Other variables as desired
+
+## Save Files
+
+Save files are stored in the `/serverdata/serverfiles/saves/server` directory. Make sure to back up this directory if you want to preserve your world data.
+
+## Logs
+
+The server creates several log files in the `/serverdata/serverfiles/logs` directory:
+- server.log: Main server output
+- error.log: Error messages
+- unity_detailed.log: Detailed Unity engine logs
+
+## Updating
+
+To update the server:
+```bash
+docker pull yeitso/docker-steamcmd-server:aska
 ```
 
-This Docker was mainly edited for better use with Unraid, if you don't use Unraid you should definitely try it!
+Then stop, remove, and recreate the container with the same parameters.
 
-This Docker is forked from mattieserver, thank you for this wonderfull Docker.
+## Troubleshooting
 
-#### Support Thread: https://forums.unraid.net/topic/79530-support-ich777-gameserver-dockers/
+1. If the server fails to start, check:
+   - Logs in the `/serverdata/serverfiles/logs` directory
+   - Steam Game Server Token validity
+   - Port availability and forwarding
+   - File permissions in the /serverdata directory
+
+2. For connection issues:
+   - Verify ports are properly forwarded
+   - Check server region setting
+   - Ensure authentication token is valid
+
+## Credits
+
+This Docker is based on work by ich777 and mattieserver. Modified for ASKA server support by JohanLeirnes.
+
+## Support
+
+For issues and feature requests, please use the GitHub repository's issue tracker:
+https://github.com/JohanLeirnes/docker-steamcmd-server
